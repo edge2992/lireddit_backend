@@ -9,6 +9,17 @@ import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
 
+import * as redis from 'redis';
+import session from "express-session"
+import connectRedis from "connect-redis";
+import { MyContext } from "./types";
+
+declare module "express-session" {
+  interface SessionData {
+    userId: number
+  }
+}
+
 const main = async () => {
   const orm = await MikroORM.init(mikroOrmConfig);
   await orm.getMigrator().up();
@@ -16,25 +27,48 @@ const main = async () => {
 
   const app = express();
 
+  const RedisStore = connectRedis(session);
+  const redisClient = redis.createClient({
+    legacyMode: true,
+  })
+
+  await redisClient.connect()
+  app.use(
+    session({
+      name: 'qid',
+      store: new RedisStore({ client: redisClient, disableTouch: true }),
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
+        httpOnly: true,
+        // sameSite: 'lax', //csrf
+        // secure: __prod__//cookie only works in https
+        sameSite: 'none',
+        secure: true
+      },
+      saveUninitialized: false,
+      secret: "qofjadkfdhhaggufakjdafh",
+      resave: false,
+    })
+  )
+
   const appoloServer = new ApolloServer({
     schema: await buildSchema({
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false
     }),
-    context: () => ({ em: emFork })
+    context: ({ req, res }): MyContext => ({ em: emFork, req, res }),
   });
 
   await appoloServer.start();
-  appoloServer.applyMiddleware({ app });
+  appoloServer.applyMiddleware({
+    app, cors: {
+      origin: ["https://studio.apollographql.com", "http://localhost:3000"],
+      credentials: true
+    }, path: '/graphql'
+  });
   app.listen(4000, () => {
     console.log("server started on localhost:4000");
   });
-  // const post = emFork.create(Post, { title: "my first post"})
-  // await emFork.persistAndFlush(post);
-  // console.log('--------sql 2--------');
-  // await emFork.nativeInsert(Post, { title: "my second post" });
-  // const posts = await emFork.find(Post, {});
-  // console.log(posts);
 };
 
 main().catch(err => {
