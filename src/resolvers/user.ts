@@ -31,15 +31,15 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
-  @Query(() => User, {nullable: true})
+  @Query(() => User, { nullable: true })
   async me(
-    @Ctx() {req, em}: MyContext
+    @Ctx() { req, em }: MyContext
   ) {
-    if(!req.session.userId){
+    if (!req.session.userId) {
       return null;
     }
 
-    const user = await em.findOne(User, {id: req.session.userId});
+    const user = await em.findOne(User, { id: req.session.userId });
     return user
   }
 
@@ -47,7 +47,7 @@ export class UserResolver {
   async register(
     @Arg('options', () => UsernamePasdswordInput) options: UsernamePasdswordInput,
     @Ctx() { em, req }: MyContext
-  ) : Promise<UserResponse> {
+  ): Promise<UserResponse> {
     if (options.username.length <= 2) {
       return {
         errors: [
@@ -58,7 +58,7 @@ export class UserResolver {
         ]
       };
     }
-    if(options.password.length <= 3) {
+    if (options.password.length <= 3) {
       return {
         errors: [
           {
@@ -71,9 +71,10 @@ export class UserResolver {
     const hashedPassword = await argon2.hash(options.password);
     const user = em.create(User, { username: options.username, password: hashedPassword } as User);
     try {
+      console.log("sample")
       await em.persistAndFlush(user);
-    } catch(err){
-      if(err.code == '23505'){
+    } catch (err) {
+      if (err.code == "23505") {
         return {
           errors: [
             {
@@ -90,7 +91,7 @@ export class UserResolver {
     // keep them logged in
     req.session.userId = user.id;
 
-    return {user};
+    return { user };
   }
 
   @Mutation(() => UserResponse)
