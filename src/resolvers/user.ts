@@ -5,7 +5,7 @@ import argon2 from "argon2";
 
 
 @InputType()
-class UsernamePasdswordInput {
+class UsernamePasswordInput {
   @Field()
   username: string;
   @Field()
@@ -45,7 +45,7 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async register(
-    @Arg('options', () => UsernamePasdswordInput) options: UsernamePasdswordInput,
+    @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
     @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
     if (options.username.length <= 2) {
@@ -96,7 +96,7 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async login(
-    @Arg('options', () => UsernamePasdswordInput) options: UsernamePasdswordInput,
+    @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
     @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
     const user = await em.findOne(User, { username: options.username });
