@@ -11,6 +11,8 @@ class UsernamePasswordInput {
   username: string;
   @Field()
   password: string;
+  @Field()
+  email: string;
 }
 
 @ObjectType()
@@ -32,6 +34,15 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+  @Mutation(() => Boolean)
+  async forgetpassword(
+    @Arg('email') email: string,
+    @Ctx() { em }: MyContext,
+  ) {
+    // const user = await em.findOne(User, {email});
+    return true;
+  }
+
   @Query(() => User, { nullable: true })
   async me(
     @Ctx() { req, em }: MyContext
@@ -49,6 +60,17 @@ export class UserResolver {
     @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
     @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
+    if (options.email.includes('@')){
+      return {
+        errors: [
+          {
+            field: "email",
+            message: "invalid email",
+          }
+        ]
+      };
+    }
+
     if (options.username.length <= 2) {
       return {
         errors: [
@@ -70,7 +92,7 @@ export class UserResolver {
       };
     }
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, { username: options.username, password: hashedPassword } as User);
+    const user = em.create(User, { username: options.username, password: hashedPassword, email: options.email } as User);
     try {
       console.log("sample")
       await em.persistAndFlush(user);
@@ -97,10 +119,11 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async login(
-    @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
+    @Arg("usernameOrEmail") usernameOrEmail: string,
+    @Arg("password") password: string,
     @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(User, { username: options.username });
+    const user = await em.findOne(User, usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail });
     if (!user) {
       return {
         errors: [{
@@ -109,7 +132,7 @@ export class UserResolver {
         }]
       }
     }
-    const valid = await argon2.verify(user.password, options.password);
+    const valid = await argon2.verify(user.password, password);
     if (!valid) {
       return {
         errors: [{
