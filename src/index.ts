@@ -33,7 +33,7 @@ const main = async () => {
     synchronize: true,
     entities: [Post, User],
   });
-  const conn = await dataSource.initialize();
+  await dataSource.initialize();
 
   const app = express();
 
