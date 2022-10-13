@@ -43,6 +43,7 @@
     "nodemailer": "^6.8.0",
     "pg": "^8.8.0",
     "type-graphql": "^1.1.1",
+    "typeorm": "^0.3.10",
     "uuid": "^9.0.0"
   },
   "mikro-orm": {
