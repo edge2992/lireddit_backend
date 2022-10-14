@@ -32,7 +32,7 @@ export class UserResolver {
   async changePassword(
     @Arg("token") token: string,
     @Arg("newPassword") newPassword: string,
-    @Ctx() { em, redis, req }: MyContext
+    @Ctx() { redis, req }: MyContext
   ): Promise<UserResponse> {
     if (newPassword.length <= 2) {
       return {
@@ -56,7 +56,8 @@ export class UserResolver {
         ]
       };
     }
-    const user = await em.findOne(User, { id: parseInt(userId) });
+    const userIdNum = parseInt(userId);
+    const user = await User.findOneBy({ id: userIdNum });
     if (!user) {
       return {
         errors: [
@@ -68,8 +69,7 @@ export class UserResolver {
       };
     }
 
-    user.password = await argon2.hash(newPassword);
-    await em.persistAndFlush(user);
+    await User.update({ id: userIdNum }, { password: await argon2.hash(newPassword) });
 
     await redis.del(key)
     //log in user after change password
@@ -81,9 +81,9 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async forgotPassword(
     @Arg('email') email: string,
-    @Ctx() { em, redis }: MyContext,
+    @Ctx() { redis }: MyContext,
   ) {
-    const user = await em.findOne(User, { email });
+    const user = await User.findOneBy({ email });
     if (!user) {
       // the email is not in the database
       console.log("not found error: ", email)
@@ -103,20 +103,20 @@ export class UserResolver {
 
   @Query(() => User, { nullable: true })
   async me(
-    @Ctx() { req, em }: MyContext
+    @Ctx() { req }: MyContext
   ) {
     if (!req.session.userId) {
       return null;
     }
 
-    const user = await em.findOne(User, { id: req.session.userId });
+    const user = await User.findOneBy({ id: req.session.userId });
     return user
   }
 
   @Mutation(() => UserResponse)
   async register(
     @Arg('options', () => UsernamePasswordInput) options: UsernamePasswordInput,
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const errors = validateRegister(options);
     if (errors) {
@@ -124,12 +124,14 @@ export class UserResolver {
     }
 
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, { username: options.username, password: hashedPassword, email: options.email } as User);
+    const user = User.create({ username: options.username, password: hashedPassword, email: options.email });
+
     try {
-      console.log("sample")
-      await em.persistAndFlush(user);
+      await user.save();
     } catch (err) {
+      console.log("error: ", err)
       if (err.code == "23505") {
+        console.log("duplicate username error")
         return {
           errors: [
             {
@@ -153,9 +155,13 @@ export class UserResolver {
   async login(
     @Arg("usernameOrEmail") usernameOrEmail: string,
     @Arg("password") password: string,
-    @Ctx() { em, req }: MyContext
+    @Ctx() {req }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(User, usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail });
+    const user = await User.findOneBy(
+      usernameOrEmail.includes('@') ?
+       {email: usernameOrEmail} :
+       {username: usernameOrEmail}
+    );
     if (!user) {
       return {
         errors: [{

@@ -1,7 +1,5 @@
 import "reflect-metadata";
-import { MikroORM } from "@mikro-orm/core";
 import { COOKIE_NAME, __prod__ } from "./constants";
-import mikroOrmConfig from "./mikro-orm.config";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
@@ -14,6 +12,9 @@ import connectRedis from "connect-redis";
 import { MyContext } from "./types";
 import cors from "cors";
 import Redis from "ioredis";
+import { DataSource } from "typeorm";
+import { Post } from "./entities/Post";
+import { User } from "./entities/User";
 
 declare module "express-session" {
   interface SessionData {
@@ -21,10 +22,18 @@ declare module "express-session" {
   }
 }
 
+
 const main = async () => {
-  const orm = await MikroORM.init(mikroOrmConfig);
-  await orm.getMigrator().up();
-  const emFork = orm.em.fork();
+  const dataSource = new DataSource({
+    type: "postgres",
+    database: "lireddit2",
+    username: "lireddit",
+    password: "password",
+    logging: true,
+    synchronize: true,
+    entities: [Post, User],
+  });
+  await dataSource.initialize();
 
   const app = express();
 
@@ -57,7 +66,7 @@ const main = async () => {
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false
     }),
-    context: ({ req, res }): MyContext => ({ em: emFork, req, res, redis }),
+    context: ({ req, res }): MyContext => ({ req, res, redis }),
   });
 
   await appoloServer.start();
