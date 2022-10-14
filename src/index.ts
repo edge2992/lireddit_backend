@@ -12,9 +12,7 @@ import connectRedis from "connect-redis";
 import { MyContext } from "./types";
 import cors from "cors";
 import Redis from "ioredis";
-import { DataSource } from "typeorm";
-import { Post } from "./entities/Post";
-import { User } from "./entities/User";
+import AppDataSource from "./config/appDataSource";
 
 declare module "express-session" {
   interface SessionData {
@@ -24,16 +22,7 @@ declare module "express-session" {
 
 
 const main = async () => {
-  const dataSource = new DataSource({
-    type: "postgres",
-    database: "lireddit2",
-    username: "lireddit",
-    password: "password",
-    logging: true,
-    synchronize: true,
-    entities: [Post, User],
-  });
-  await dataSource.initialize();
+  await AppDataSource.initialize();
 
   const app = express();
 
