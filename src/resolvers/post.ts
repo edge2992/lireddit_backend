@@ -3,7 +3,7 @@ import { MyContext } from "src/types";
 import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, ObjectType, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { Post } from "../entities/Post";
 import AppDataSource from "../config/appDataSource";
-import { User } from "../entities/User";
+import { Updoot } from "../entities/Updoot";
 
 
 @InputType()
@@ -30,6 +30,23 @@ export class PostResolver {
     @Root() root: Post
   ) {
     return root.text.slice(0, 50);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware(isAuth)
+  async vote(
+    @Arg('postId', () => Int) postId: number,
+    @Arg('value', () => Int) value: number,
+    @Ctx() { req }: MyContext
+  ) {
+    const isUpdoot = value !== -1;
+    const realValue = isUpdoot ? 1 : -1;
+    const { userId } = req.session;
+    Updoot.insert({ userId, postId, value: realValue });
+    await AppDataSource.query(
+      `update post p set p.points = p.points + ${realValue} where p.id = ${postId}`
+    )
+    return true;
   }
 
   @Query(() => PaginatedPosts)
