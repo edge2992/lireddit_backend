@@ -3,6 +3,7 @@ import { MyContext } from "src/types";
 import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, ObjectType, Query, Resolver, Root, UseMiddleware } from "type-graphql";
 import { Post } from "../entities/Post";
 import AppDataSource from "../config/appDataSource";
+import { User } from "../entities/User";
 
 
 @InputType()
@@ -40,10 +41,11 @@ export class PostResolver {
     const realLimitPlusOne = realLimit + 1;
     const qb = AppDataSource.getRepository(Post)
       .createQueryBuilder("p")
-      .orderBy('"createdAt"', "DESC")
+      .innerJoinAndSelect("p.creator", "u", "u.id = p.creatorId")
+      .addOrderBy("p.createdAt", "DESC")
       .take(realLimitPlusOne);
     if (cursor) {
-      qb.where('"createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) });
+      qb.where('p."createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) });
     }
 
     const posts = await qb.getMany();
