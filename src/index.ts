@@ -13,7 +13,6 @@ import { MyContext } from "./types";
 import cors from "cors";
 import Redis from "ioredis";
 import AppDataSource from "./config/appDataSource";
-import { Post } from "./entities/Post";
 
 declare module "express-session" {
   interface SessionData {
