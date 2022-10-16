@@ -15,7 +15,7 @@ export class Updoot extends BaseEntity {
   userId: number;
 
   @Field(() => User)
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, (user) => user.updoots)
   user: User
 
   @Field()
@@ -23,6 +23,6 @@ export class Updoot extends BaseEntity {
   postId: number;
 
   @Field(()=> Post)
-  @ManyToOne(() => Post)
+  @ManyToOne(() => Post, (post) => post.updoots)
   post: Post;
 }
