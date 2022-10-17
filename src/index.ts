@@ -6,15 +6,12 @@ import { buildSchema } from "type-graphql";
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
-
 import session from "express-session"
 import connectRedis from "connect-redis";
 import { MyContext } from "./types";
-import cors from "cors";
 import Redis from "ioredis";
-import { DataSource } from "typeorm";
-import { Post } from "./entities/Post";
-import { User } from "./entities/User";
+import AppDataSource from "./config/appDataSource";
+import cors from "cors";
 
 declare module "express-session" {
   interface SessionData {
@@ -24,16 +21,7 @@ declare module "express-session" {
 
 
 const main = async () => {
-  const dataSource = new DataSource({
-    type: "postgres",
-    database: "lireddit2",
-    username: "lireddit",
-    password: "password",
-    logging: true,
-    synchronize: true,
-    entities: [Post, User],
-  });
-  await dataSource.initialize();
+  await AppDataSource.initialize();
 
   const app = express();
 
@@ -44,6 +32,9 @@ const main = async () => {
     origin: ["http://localhost:3000", "https://studio.apollographql.com"],
     credentials: true
   }))
+
+  // !__prod__ && app.set("trust proxy", 1);
+
   app.use(
     session({
       name: COOKIE_NAME,
@@ -51,8 +42,10 @@ const main = async () => {
       cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
         httpOnly: true,
-        sameSite: 'lax', //csrf
-        secure: __prod__//cookie only works in https
+        // sameSite: 'lax', //csrf
+        // secure: __prod__,//cookie only works in https
+        sameSite: "lax",
+        secure: false,
       },
       saveUninitialized: false,
       secret: "qofjadkfdhhaggufakjdafh",
@@ -71,7 +64,9 @@ const main = async () => {
 
   await appoloServer.start();
   appoloServer.applyMiddleware({
-    app, cors: false, path: '/graphql'
+    app,
+    cors: false,
+    path: '/graphql'
   });
   app.listen(4000, () => {
     console.log("server started on localhost:4000");
