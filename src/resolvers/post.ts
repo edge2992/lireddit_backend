@@ -4,6 +4,7 @@ import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, ObjectType, Q
 import { Post } from "../entities/Post";
 import AppDataSource from "../config/appDataSource";
 import { Updoot } from "../entities/Updoot";
+import { SelectQueryBuilder } from "typeorm";
 
 
 @InputType()
@@ -82,19 +83,44 @@ export class PostResolver {
   async posts(
     @Arg("limit", () => Int) limit: number,
     @Arg("cursor", () => String, { nullable: true }) cursor: string | null,
+    @Ctx() { req }: MyContext
   ): Promise<PaginatedPosts> {
     const realLimit = Math.min(50, limit);
     const realLimitPlusOne = realLimit + 1;
-    const qb = AppDataSource.getRepository(Post)
-      .createQueryBuilder("p")
-      .innerJoinAndSelect("p.creator", "u", "u.id = p.creatorId")
-      .addOrderBy("p.createdAt", "DESC")
-      .take(realLimitPlusOne);
+
+    const replacements: any[] = [realLimitPlusOne];
+    if (req.session.userId) {
+      replacements.push(req.session.userId);
+    }
+    console.log("login ? ", req.session, req.session.userId);
+
+    let cursorIdx = 3;
+
     if (cursor) {
-      qb.where('p."createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) });
+      replacements.push(new Date(parseInt(cursor)));
+      cursorIdx = replacements.length;
     }
 
-    const posts = await qb.getMany();
+    const posts = await AppDataSource.query(`
+    select p.*,
+    json_build_object(
+      'id', u.id,
+      'username', u.username,
+      'email', u.email,
+      'createdAt', u."createdAt",
+      'updatedAt', u."updatedAt"
+      ) creator,
+      ${req.session.userId
+        ? '(select value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"'
+        : 'null as "voteStatus"'
+      }
+      from post p
+      inner join public.user u on u.id = p."creatorId"
+      ${cursor ? `where p."createdAt" < $${cursorIdx}` : ""}
+      order by p."createdAt" DESC
+      limit $1
+    `, replacements);
+
     return { posts: posts.slice(0, realLimit), hasMore: posts.length === realLimitPlusOne };
   }
 

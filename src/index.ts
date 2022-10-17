@@ -33,7 +33,7 @@ const main = async () => {
     credentials: true
   }))
 
-  !__prod__ && app.set("trust proxy", 1);
+  // !__prod__ && app.set("trust proxy", 1);
 
   app.use(
     session({
@@ -44,8 +44,8 @@ const main = async () => {
         httpOnly: true,
         // sameSite: 'lax', //csrf
         // secure: __prod__,//cookie only works in https
-        sameSite: "none",
-        secure: true,
+        sameSite: "lax",
+        secure: false,
       },
       saveUninitialized: false,
       secret: "qofjadkfdhhaggufakjdafh",
