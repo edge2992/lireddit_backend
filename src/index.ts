@@ -12,6 +12,8 @@ import { MyContext } from "./types";
 import Redis from "ioredis";
 import AppDataSource from "./config/appDataSource";
 import cors from "cors";
+import { createUserLoader } from "./utils/createUserLoader";
+import { createUpdootLoader } from "./utils/createUpdootLoader";
 
 declare module "express-session" {
   interface SessionData {
@@ -59,7 +61,7 @@ const main = async () => {
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false
     }),
-    context: ({ req, res }): MyContext => ({ req, res, redis }),
+    context: ({ req, res }): MyContext => ({ req, res, redis, userLoader: createUserLoader(), updootLoader: createUpdootLoader() }),
   });
 
   await appoloServer.start();
