@@ -4,7 +4,6 @@ import { Arg, Ctx, Field, FieldResolver, InputType, Int, Mutation, ObjectType, Q
 import { Post } from "../entities/Post";
 import AppDataSource from "../config/appDataSource";
 import { Updoot } from "../entities/Updoot";
-import { SelectQueryBuilder } from "typeorm";
 
 
 @InputType()
@@ -147,19 +146,20 @@ export class PostResolver {
   }
 
   @Mutation(() => Post, { nullable: true })
+  @UseMiddleware(isAuth)
   async updatePost(
     @Arg('id', () => Int) id: number,
-    @Arg('title', () => String, { nullable: true }) title: string,
+    @Arg('title') title: string,
+    @Arg("text") text: string,
+    @Ctx() { req }: MyContext
   ): Promise<Post | null> {
-    const post = await Post.findOneBy({ id });
-    if (!post) {
-      return null
-    }
-    if (typeof title !== 'undefined') {
-      post.title = title;
-      Post.update({ id }, { title });
-    }
-    return post;
+    return await AppDataSource
+      .createQueryBuilder()
+      .update(Post)
+      .set({ title, text })
+      .where({ id, creatorId: req.session.userId })
+      .returning("*")
+      .execute().then((res) => res.raw[0]);
   }
 
   @Mutation(() => Boolean)
@@ -168,13 +168,7 @@ export class PostResolver {
     @Arg('id', () => Int) id: number,
     @Ctx() { req }: MyContext
   ): Promise<boolean> {
-    const post = await Post.findOneBy({ id });
-    if(!post) return false;
-    if(post.creatorId !== req.session.userId) {
-      throw new Error("not authorized");
-    }
-    await Updoot.delete({postId: id});
-    await Post.delete({ id });
+    await Post.delete({ id, creatorId: req.session.userId });
     return true;
   }
 }
