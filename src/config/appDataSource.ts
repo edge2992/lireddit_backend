@@ -6,11 +6,9 @@ import { Updoot } from "../entities/Updoot";
 
 const AppDataSource = new DataSource({
   type: "postgres",
-  database: "lireddit2",
-  username: "lireddit",
-  password: "password",
+  url: process.env.DATABASE_URL,
   logging: true,
-  synchronize: true,
+  // synchronize: true,
   entities: [Post, User, Updoot],
   migrations: [path.join(__dirname, "../migrations/*")],
 });
