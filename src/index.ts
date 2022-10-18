@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "dotenv-safe/config";
 import { COOKIE_NAME, __prod__ } from "./constants";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
@@ -23,19 +24,20 @@ declare module "express-session" {
 
 
 const main = async () => {
-  await AppDataSource.initialize();
+  const conn = await AppDataSource.initialize();
+  await conn.runMigrations();
 
   const app = express();
 
   const RedisStore = connectRedis(session);
-  const redis = new Redis();
+  const redis = new Redis(process.env.REDIS_URL);
 
   app.use(cors({
-    origin: ["http://localhost:3000", "https://studio.apollographql.com"],
+    origin: process.env.CORS_ORIGIN,
     credentials: true
   }))
 
-  // !__prod__ && app.set("trust proxy", 1);
+  app.set("trust proxy", 1);
 
   app.use(
     session({
@@ -44,13 +46,12 @@ const main = async () => {
       cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
         httpOnly: true,
-        // sameSite: 'lax', //csrf
-        // secure: __prod__,//cookie only works in https
-        sameSite: "lax",
-        secure: false,
+        sameSite: 'lax', //csrf
+        secure: __prod__,//cookie only works in https
+        domain: __prod__ ? '.edge2992.dev': undefined
       },
       saveUninitialized: false,
-      secret: "qofjadkfdhhaggufakjdafh",
+      secret: process.env.SESSION_SECRET,
       resave: false,
     })
   )
@@ -70,7 +71,7 @@ const main = async () => {
     cors: false,
     path: '/graphql'
   });
-  app.listen(4000, () => {
+  app.listen(parseInt(process.env.PORT), () => {
     console.log("server started on localhost:4000");
   });
 };
